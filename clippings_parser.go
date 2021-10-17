@@ -2,14 +2,12 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
 
 type Parser struct {
 	clippingsFilePath string
@@ -28,14 +26,10 @@ func New(filePath string) Parser {
 	return Parser{clippingsFilePath: filePath}
 }
 
-func (p Parser) Parse() []Clipping{
+func (p Parser) Parse() []Clipping {
 	fileContent := readClippingsFile(p)
-	transformStringToClipping(fileContent)
+	return transformStringToClipping(fileContent)
 
-	test := make([]Clipping,0)
-
-	return test
-	
 }
 
 func readClippingsFile(parser Parser) map[string][]string {
@@ -57,7 +51,7 @@ func readClippingsFile(parser Parser) map[string][]string {
 
 			currentLine := scanner.Text()
 			if clippingsSeparatorRegEx.MatchString(currentLine) {
-				contents["section"+ strconv.Itoa(scannedSectionCounter)]= clipping
+				contents["section"+strconv.Itoa(scannedSectionCounter)] = append([]string(nil), clipping...)
 				clipping = clipping[:0]
 				scannedSectionCounter++
 			} else {
@@ -90,34 +84,58 @@ func clippingsFileExists(clippingsFilePath string) bool {
 
 func transformStringToClipping(clippingSections map[string][]string) []Clipping {
 
-    clippings := make([]Clipping,0)
+	clippings := make([]Clipping, 0)
 
 	for _, section := range clippingSections {
 
-		clippings= append(clippings,extractClippingMetaData(section))
+		clippings = append(clippings, extractClippingMetaData(section))
 
 	}
-	return clippings	
+	return clippings
 }
 
 func extractClippingMetaData(clippingSection []string) Clipping {
-    
-	titleAuthor := strings.FieldsFunc(clippingSection[0], Split)
-    pageDetails:= strings.FieldsFunc(clippingSection[1], Split)
-	typeAndPage := strings.TrimSpace(pageDetails[0])
-	isHighlight :=  regexp.MustCompile(`Your\s*(.*?)\s*on`)
-    //matches:= isHighlight.FindAllStringSubmatch(typeAndPage,-1)
-    
-     
+
+	titleAuthorDetails := strings.FieldsFunc(clippingSection[0], Split)
+	typePageAndDateDetails := strings.FieldsFunc(clippingSection[1], Split)
+	typeAndPageMatches := getRegexMatches(`Your\s*(.*?)\s*on\s*page\s*([0-9]+)`, typePageAndDateDetails[0])
+	pageNumberToInt, _ := strconv.Atoi(typeAndPageMatches[1])
+	clippingDateTime := strings.TrimSpace(typePageAndDateDetails[len(typePageAndDateDetails)-1])
 
 	return Clipping{
-		title: titleAuthor[0],
-		author: titleAuthor[1],
-	
-
+		title:        titleAuthorDetails[0],
+		author:       titleAuthorDetails[1],
+		clippingType: typeAndPageMatches[0],
+		pageNumber:   pageNumberToInt,
+		clippingDate: clippingDateTime,
+		content: clippingSection[2],
 	}
 }
 
+func getRegexMatches(regexString string, stringToSearch string) []string {
+	isHighlight := regexp.MustCompile(regexString)
+	matches := isHighlight.FindAllStringSubmatch(stringToSearch, -1)
+	matchGroups := make([]string, 0)
+
+	for _, match := range matches {
+		for i := 1; i < len(match); i++ {
+			if !contains(matchGroups, match[i]) {
+				matchGroups = append(matchGroups,strings.TrimSpace(match[i]))
+			}
+		}
+	}
+	return matchGroups
+}
+
 func Split(r rune) bool {
-	return r == '(' || r == ')' || r == '|' || r == '-'
+	return r == '(' || r == ')' || r == '|' || r == '-' || r == ','
+}
+
+func contains(aSlice []string, elementToSearch string) bool {
+	for _, element := range aSlice {
+		if elementToSearch == element {
+			return true
+		}
+	}
+	return false
 }
