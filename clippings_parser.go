@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -36,10 +35,11 @@ func readClippingsFile(parser Parser) map[string][]string {
 
 	clippingsSeparatorRegEx := regexp.MustCompile("====*")
 
-	if clippingsFileExists(parser.clippingsFilePath) {
+	if fileExists(parser.clippingsFilePath) {
 
 		clippingFile, openError := os.Open(parser.clippingsFilePath)
-		isError(openError)
+		isError(openError,"unable to read clippings file") 
+
 		defer clippingFile.Close()
 
 		contents := make(map[string][]string, 0)
@@ -67,21 +67,6 @@ func readClippingsFile(parser Parser) map[string][]string {
 	return nil
 }
 
-func isError(anError error) {
-	if anError != nil {
-		log.Fatalf("unable to read clippings file %v", anError)
-	}
-}
-
-func clippingsFileExists(clippingsFilePath string) bool {
-	info, err := os.Stat(clippingsFilePath)
-	if os.IsNotExist(err) {
-		return false
-	}
-
-	return !info.IsDir()
-}
-
 func transformStringToClipping(clippingSections map[string][]string) []Clipping {
 
 	clippings := make([]Clipping, 0)
@@ -96,9 +81,9 @@ func transformStringToClipping(clippingSections map[string][]string) []Clipping 
 
 func extractClippingMetaData(clippingSection []string) Clipping {
 
-	titleAuthorDetails := strings.FieldsFunc(clippingSection[0], Split)
-	typePageAndDateDetails := strings.FieldsFunc(clippingSection[1], Split)
-	typeAndPageMatches := getRegexMatches(`Your\s*(.*?)\s*on\s*page\s*([0-9]+)`, typePageAndDateDetails[0])
+	titleAuthorDetails := strings.FieldsFunc(clippingSection[0], split)
+	typePageAndDateDetails := strings.FieldsFunc(clippingSection[1], split)
+	typeAndPageMatches := matchByRegex(`Your\s*(.*?)\s*on\s*page\s*([0-9]+)`, typePageAndDateDetails[0])
 	pageNumberToInt, _ := strconv.Atoi(typeAndPageMatches[1])
 	clippingDateTime := strings.TrimSpace(typePageAndDateDetails[len(typePageAndDateDetails)-1])
 
@@ -110,32 +95,4 @@ func extractClippingMetaData(clippingSection []string) Clipping {
 		clippingDate: clippingDateTime,
 		content: clippingSection[2],
 	}
-}
-
-func getRegexMatches(regexString string, stringToSearch string) []string {
-	isHighlight := regexp.MustCompile(regexString)
-	matches := isHighlight.FindAllStringSubmatch(stringToSearch, -1)
-	matchGroups := make([]string, 0)
-
-	for _, match := range matches {
-		for i := 1; i < len(match); i++ {
-			if !contains(matchGroups, match[i]) {
-				matchGroups = append(matchGroups,strings.TrimSpace(match[i]))
-			}
-		}
-	}
-	return matchGroups
-}
-
-func Split(r rune) bool {
-	return r == '(' || r == ')' || r == '|' || r == '-' || r == ','
-}
-
-func contains(aSlice []string, elementToSearch string) bool {
-	for _, element := range aSlice {
-		if elementToSearch == element {
-			return true
-		}
-	}
-	return false
 }
