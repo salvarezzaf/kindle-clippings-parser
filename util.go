@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -16,7 +15,7 @@ func fileExists(clippingsFilePath string) bool {
 	return !info.IsDir()
 }
 
-func matchByRegex(regexString string, stringToSearch string) []string {
+func findPatternMatchesInString(regexString string, stringToSearch string) []string {
 	pattern := regexp.MustCompile(regexString)
 	matches := pattern.FindAllStringSubmatch(stringToSearch, -1)
 	matchGroups := make([]string, 0)
@@ -38,12 +37,6 @@ func contains(aSlice []string, elementToSearch string) bool {
 		}
 	}
 	return false
-}
-
-func isError(anError error, msg string) {
-	if anError != nil {
-		log.Fatalf(msg+" %v", anError)
-	}
 }
 
 func split(r rune) bool {

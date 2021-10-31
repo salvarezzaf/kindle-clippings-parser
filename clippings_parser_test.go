@@ -6,7 +6,7 @@ import (
 
 func TestParseClippingSuccess(t *testing.T) {
 
-	clipping := New("clippings.txt")
+	clipping := New("sample_clippings.txt")
 
 	clipping.Parse()
 

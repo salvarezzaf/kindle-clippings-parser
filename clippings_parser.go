@@ -2,10 +2,18 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+const(
+	titleAuthorRegexPattern = `(.*?)\s*\((.*?)\)`
+	clippingLocRegexPattern = `\s*\\|\s*location\s*(\d+-\d+|\d+)` 
+	clippingDateTimeRegexPattern = `\s*\\|\s*Added\s*on\s*(.*?),\s*(\d+)\s*(.*?)\s*(\d+)\s*(\d+:\d+:\d+)`
+	clippingTypeAndPageRegexPattern = `Your\s*(.*?)\s*on\s*page\s*([0-9]+)`
 )
 
 type Parser struct {
@@ -16,7 +24,8 @@ type Clipping struct {
 	title        string
 	author       string
 	clippingType string
-	pageNumber   int
+	pageNumber   string
+	loc 		 string	
 	clippingDate string
 	content      string
 }
@@ -25,20 +34,28 @@ func New(filePath string) Parser {
 	return Parser{clippingsFilePath: filePath}
 }
 
-func (p Parser) Parse() []Clipping {
-	fileContent := readClippingsFile(p)
-	return transformStringToClipping(fileContent)
+func (p Parser) Parse() ([]Clipping, error) {
+	fileContent, err := readClippingsFile(p)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return transformStringToClipping(fileContent), nil
 
 }
 
-func readClippingsFile(parser Parser) map[string][]string {
+func readClippingsFile(parser Parser) (map[string][]string, error) {
 
 	clippingsSeparatorRegEx := regexp.MustCompile("====*")
 
 	if fileExists(parser.clippingsFilePath) {
 
 		clippingFile, openError := os.Open(parser.clippingsFilePath)
-		isError(openError,"unable to read clippings file") 
+
+		if openError != nil {
+			return nil, errors.New("unable to read clippings file")
+		}
 
 		defer clippingFile.Close()
 
@@ -61,10 +78,10 @@ func readClippingsFile(parser Parser) map[string][]string {
 			}
 
 		}
-		return contents
+		return contents, nil
 	}
 
-	return nil
+	return nil, errors.New("Clipping file not found in provided file path")
 }
 
 func transformStringToClipping(clippingSections map[string][]string) []Clipping {
@@ -81,18 +98,18 @@ func transformStringToClipping(clippingSections map[string][]string) []Clipping 
 
 func extractClippingMetaData(clippingSection []string) Clipping {
 
-	titleAuthorDetails := strings.FieldsFunc(clippingSection[0], split)
-	typePageAndDateDetails := strings.FieldsFunc(clippingSection[1], split)
-	typeAndPageMatches := matchByRegex(`Your\s*(.*?)\s*on\s*page\s*([0-9]+)`, typePageAndDateDetails[0])
-	pageNumberToInt, _ := strconv.Atoi(typeAndPageMatches[1])
-	clippingDateTime := strings.TrimSpace(typePageAndDateDetails[len(typePageAndDateDetails)-1])
-
+	titleAuthorMatch := findPatternMatchesInString(titleAuthorRegexPattern,clippingSection[0])
+	clippingTypeAndpage := findPatternMatchesInString(clippingTypeAndPageRegexPattern, clippingSection[1])
+	clippingLoc := findPatternMatchesInString(clippingLocRegexPattern,clippingSection[1])
+	clippingDateTime := findPatternMatchesInString(clippingDateTimeRegexPattern,clippingSection[1])
+   
 	return Clipping{
-		title:        titleAuthorDetails[0],
-		author:       titleAuthorDetails[1],
-		clippingType: typeAndPageMatches[0],
-		pageNumber:   pageNumberToInt,
-		clippingDate: clippingDateTime,
-		content: clippingSection[2],
+		title:        titleAuthorMatch[0],
+		author:       titleAuthorMatch[1],
+		clippingType: clippingTypeAndpage[0],
+		pageNumber:   clippingTypeAndpage[1],
+		loc: clippingLoc[0],
+		clippingDate: strings.Join(clippingDateTime," "),
+		content:      clippingSection[2],
 	}
 }
