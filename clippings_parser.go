@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-const(
-	titleAuthorRegexPattern = `(.*?)\s*\((.*?)\)`
-	clippingLocRegexPattern = `\s*\\|\s*location\s*(\d+-\d+|\d+)` 
-	clippingDateTimeRegexPattern = `\s*\\|\s*Added\s*on\s*(.*?),\s*(\d+)\s*(.*?)\s*(\d+)\s*(\d+:\d+:\d+)`
-	clippingTypeAndPageRegexPattern = `Your\s*(.*?)\s*on\s*page\s*([0-9]+)`
+const (
+	titleAuthorRegexPattern           = `(.*?)\s*\((.*?)\)`
+	clippingLocRegexPattern           = `\s*\\|\s*location\s*(\d+-\d+|\d+)`
+	clippingDateTimeRegexPattern      = `\s*\\|\s*Added\s*on\s*(.*?),\s*(\d+)\s*(.*?)\s*(\d+)\s*(\d+:\d+:\d+)`
+	clippingTypePageOrLocRegexPattern = `Your\s*(.*?)\s*(on|at)\s*(page|location)\s*(\d+-\d+|\d+)`
 )
 
 type Parser struct {
@@ -24,8 +24,8 @@ type Clipping struct {
 	title        string
 	author       string
 	clippingType string
-	pageNumber   string
-	loc 		 string	
+	pageOrLoc    string
+	loc          string
 	clippingDate string
 	content      string
 }
@@ -33,8 +33,9 @@ type Clipping struct {
 func New(filePath string) Parser {
 	return Parser{clippingsFilePath: filePath}
 }
-
-func (p Parser) Parse() ([]Clipping, error) {
+// Parse reads clipping file and returns []Clipping which contain metadata  
+// extracted from each clipping section in the file.
+func (p Parser) Parse() (map[string][]Clipping, error) {
 	fileContent, err := readClippingsFile(p)
 
 	if err != nil {
@@ -84,32 +85,39 @@ func readClippingsFile(parser Parser) (map[string][]string, error) {
 	return nil, errors.New("Clipping file not found in provided file path")
 }
 
-func transformStringToClipping(clippingSections map[string][]string) []Clipping {
+func transformStringToClipping(clippingSections map[string][]string) map[string][]Clipping {
 
-	clippings := make([]Clipping, 0)
+	clippings := make(map[string][]Clipping, 0)
 
 	for _, section := range clippingSections {
+		currentClipping := extractClippingMetaData(section)
 
-		clippings = append(clippings, extractClippingMetaData(section))
-
+		if clippingsForTitle,found := clippings[currentClipping.title]; found {
+            clippingsForTitle = append(clippingsForTitle,currentClipping)
+			clippings[currentClipping.title] = clippingsForTitle
+		} else {
+			clippingForTitle := make([]Clipping,0)
+			clippingForTitle = append(clippingForTitle, currentClipping)
+			clippings[currentClipping.title] = clippingForTitle
+		}		
 	}
 	return clippings
 }
 
 func extractClippingMetaData(clippingSection []string) Clipping {
 
-	titleAuthorMatch := findPatternMatchesInString(titleAuthorRegexPattern,clippingSection[0])
-	clippingTypeAndpage := findPatternMatchesInString(clippingTypeAndPageRegexPattern, clippingSection[1])
-	clippingLoc := findPatternMatchesInString(clippingLocRegexPattern,clippingSection[1])
-	clippingDateTime := findPatternMatchesInString(clippingDateTimeRegexPattern,clippingSection[1])
-   
+	titleAuthorMatch := findPatternMatchesInString(titleAuthorRegexPattern, clippingSection[0])
+	clippingTypePageOrLoc := findPatternMatchesInString(clippingTypePageOrLocRegexPattern, clippingSection[1])
+	clippingLocOnly := findPatternMatchesInString(clippingLocRegexPattern,clippingSection[1])
+	clippingDateTime := findPatternMatchesInString(clippingDateTimeRegexPattern, clippingSection[1])
+
 	return Clipping{
-		title:        titleAuthorMatch[0],
+		title:        strings.TrimFunc(titleAuthorMatch[0],IsUnicodeSpecial),
 		author:       titleAuthorMatch[1],
-		clippingType: clippingTypeAndpage[0],
-		pageNumber:   clippingTypeAndpage[1],
-		loc: clippingLoc[0],
-		clippingDate: strings.Join(clippingDateTime," "),
-		content:      clippingSection[2],
+		clippingType: clippingTypePageOrLoc[0],
+		pageOrLoc:    clippingTypePageOrLoc[3],
+		loc:          clippingLocOnly[0],
+		clippingDate: strings.Join(clippingDateTime, " "),
+		content:      strings.TrimFunc(clippingSection[2],IsUnicodeSpecial),
 	}
 }

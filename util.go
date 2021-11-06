@@ -4,6 +4,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 func fileExists(clippingsFilePath string) bool {
@@ -39,6 +40,6 @@ func contains(aSlice []string, elementToSearch string) bool {
 	return false
 }
 
-func split(r rune) bool {
-	return r == '(' || r == ')' || r == '|' || r == '-' || r == ','
+func IsUnicodeSpecial(r rune) bool {
+	return !unicode.IsGraphic(r)
 }
