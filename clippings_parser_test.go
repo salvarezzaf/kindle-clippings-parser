@@ -19,7 +19,7 @@ func (suite *ClippingParserTestSuite) SetupSuite()  {
 
 func (suite *ClippingParserTestSuite) TestParseClippingSuccess() {
 
-	clipping := New("sample_clippings.txt")
+	clipping := NewClippingsParser("sample_clippings.txt")
 
 	clippings, _ := clipping.Parse()
 
@@ -28,18 +28,15 @@ func (suite *ClippingParserTestSuite) TestParseClippingSuccess() {
 
 }
 
-
 func (suite *ClippingParserTestSuite) TestParseClippingError() {
 
-	clipping := New("not_exists.txt")
+	clipping := NewClippingsParser("not_exists.txt")
 
 	_, err := clipping.Parse()
 
 	assert.EqualError(suite.T(),err,"Clipping file not found in provided file path")
 
 }
-
-
 
 func TestClippingParserTestSuite(t *testing.T) {
 	suite.Run(t,new(ClippingParserTestSuite))

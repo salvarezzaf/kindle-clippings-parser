@@ -43,3 +43,4 @@ func contains(aSlice []string, elementToSearch string) bool {
 func IsUnicodeSpecial(r rune) bool {
 	return !unicode.IsGraphic(r)
 }
+
